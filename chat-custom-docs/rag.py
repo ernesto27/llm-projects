@@ -27,13 +27,14 @@ def query_vector_db(question):
 
 def ollama_api_request(model, prompt):
     url = "http://localhost:11434/api/generate"
-    payload = {"model": model, "prompt": prompt, "stream": False}
+    payload = {"model": model, "prompt": prompt, "stream": True}
     headers = {"Content-Type": "application/json"}
-    response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(url, json=payload, headers=headers, stream=True)
     
     if response.status_code == 200:
-        return response.json().get("response", "")
-    return "Error generating response."
+        for line in response.iter_lines():
+            if line:
+                yield line + b"\n"
 
 @app.route("/")
 def chat_interface():
@@ -45,14 +46,12 @@ def chat_handler():
     question = data.get("question", "")
     
     doc_content = query_vector_db(question)
-    print(f"Document content: {doc_content}")
-    #model = "deepseek-r1:latest"
-    #model = "mistral"
     model = "llama3.2:3b"
     
-    response = ollama_api_request(model, f"Answer based on the document: {doc_content}")
-    
-    return jsonify({"response": response})
+    return Response(
+        ollama_api_request(model, f"Answer based on the document: {doc_content}"),
+        content_type='text/event-stream'
+    )
 
 def read_data_file(filepath):
     try:
