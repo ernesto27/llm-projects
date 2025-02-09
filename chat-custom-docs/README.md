@@ -1,0 +1,8 @@
+docker run -p 8000:8000 ghcr.io/chroma-core/chroma:latest
+
+
+
+# Create a virtual environment (venv)
+python3 -m venv venv
+
+source venv/bin/activate

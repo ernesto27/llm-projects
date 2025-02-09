@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html class="dark">
+<head>
+    <title>AI Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: calc(100vh - 120px);
+            background: #1a1b1e;
+        }
+        .message {
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .user-message {
+            background: #2d2d2d;
+        }
+        .assistant-message {
+            background: #1a1b1e;
+        }
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 4px;
+        }
+        .typing-dot {
+            width: 4px;
+            height: 4px;
+            margin: 0 1px;
+            background-color: #9ca3af;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .markdown-body {
+            font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            color: #e5e7eb;
+        }
+        .markdown-body pre {
+            background-color: #2d2d2d;
+            border-radius: 6px;
+            padding: 16px;
+            overflow: auto;
+        }
+        .markdown-body code {
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 0.2em 0.4em;
+            font-size: 85%;
+        }
+        .markdown-body pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .markdown-body blockquote {
+            border-left: 0.25em solid #4b5563;
+            padding: 0 1em;
+            color: #9ca3af;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-gray-800 shadow-sm">
+            <div class="max-w-4xl mx-auto px-4 py-4">
+                <h1 class="text-xl font-semibold text-gray-100">AI Research Assistant</h1>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <main class="max-w-4xl mx-auto px-4 py-6">
+            <div class="chat-container overflow-y-auto rounded-lg shadow-sm border border-gray-700">
+                <div id="messages" class="p-4 space-y-6"></div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="mt-4 relative">
+                <div class="relative">
+                    <textarea
+                        id="userInput"
+                        rows="3"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-800 text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-sm"
+                        placeholder="Ask a question..."
+                    ></textarea>
+                    <button
+                        onclick="sendMessage()"
+                        class="absolute right-2 bottom-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                        Send
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+
+        marked.setOptions({
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            },
+            langPrefix: 'hljs language-'
+        });
+
+        function createMessageElement(content, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'} p-4 rounded-lg`;
+            
+            const innerDiv = document.createElement('div');
+            innerDiv.className = `flex items-start ${isUser ? 'justify-end' : ''}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = `flex-shrink-0 ${isUser ? 'order-2 ml-4' : 'mr-4'}`;
+            avatar.innerHTML = isUser 
+                ? '<svg class="w-8 h-8 rounded-full bg-blue-100 p-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>'
+                : '<svg class="w-8 h-8 rounded-full bg-green-100 p-1" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"></path></svg>';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = `flex-1 ${isUser ? 'text-right' : ''} markdown-body`;
+            
+            // Parse markdown for assistant messages only
+            if (isUser) {
+                contentDiv.textContent = content;
+            } else {
+                contentDiv.innerHTML = marked.parse(content);
+            }
+
+            innerDiv.appendChild(avatar);
+            innerDiv.appendChild(contentDiv);
+            messageDiv.appendChild(innerDiv);
+            return messageDiv;
+        }
+
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'typingIndicator';
+            indicator.className = 'message assistant-message p-4 rounded-lg';
+            indicator.innerHTML = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 mr-4">
+                        <svg class="w-8 h-8 rounded-full bg-green-100 p-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
+                            <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"></path>
+                        </svg>
+                    </div>
+                    <div class="typing-indicator">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </div>
+                </div>
+            `;
+            messagesDiv.appendChild(indicator);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Append user message
+            messagesDiv.appendChild(createMessageElement(message, true));
+            userInput.value = '';
+            userInput.style.height = 'auto';
+
+            // Show typing indicator
+            showTypingIndicator();
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: message })
+                });
+                const data = await response.json();
+                
+                // Remove typing indicator and append response
+                removeTypingIndicator();
+                messagesDiv.appendChild(createMessageElement(data.response, false));
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            } catch (error) {
+                removeTypingIndicator();
+                messagesDiv.appendChild(createMessageElement('Error: Could not get response', false));
+            }
+        }
+
+        // Handle enter key
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize textarea
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    </script>
+</body>
+</html>
