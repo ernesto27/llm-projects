@@ -49,7 +49,7 @@ def chat_handler():
     model = "llama3.2:3b"
     
     return Response(
-        ollama_api_request(model, f"Answer based on the document: {doc_content}"),
+        ollama_api_request(model, f"Responde basandote en esta data: {doc_content} -  si la respuesta no se encuentra en la data , di que no sabes"),
         content_type='text/event-stream'
     )
 
@@ -66,6 +66,9 @@ if __name__ == "__main__":
     content = read_data_file("data.txt")
     print(content)
     insert_document("1", content)
+
+    content2 = read_data_file("react.txt")
+    insert_document("2", content2)
 
 
     print("Server running on port 8081...")
