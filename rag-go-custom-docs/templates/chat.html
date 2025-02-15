@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#19C37D',
+                        secondary: '#0EA5E9',
+                        dark: {
+                            DEFAULT: '#343541',
+                            secondary: '#444654',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="h-full bg-dark text-gray-100">
+    <div class="h-full flex">
+        <div class="flex flex-col flex-1">
+            <div class="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-dark-secondary border-b border-gray-700">
+                <button type="button" class="lg:hidden px-4 text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary">
+                    <span class="sr-only">Open sidebar</span>
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="flex-1 px-4 flex justify-between items-center">
+                    <h1 class="text-2xl font-semibold text-gray-100">Pigmalion studios AI asistente</h1>
+                </div>
+            </div>
+
+            <!-- Chat area modifications -->
+            <div class="flex-1 relative z-0 flex bg-dark">
+                <main class="flex-1 relative z-0 overflow-y-auto px-4 py-2">
+                   <!-- Messages container with ChatGPT-style bubbles -->
+                    <div class="max-w-3xl mx-auto space-y-6" id="messages">
+                        <!-- Modified welcome message -->
+                        <div class="flex items-start">
+                            <div class="bg-dark-secondary rounded-lg px-4 py-3 shadow-lg w-full">
+                                <div class="font-medium text-gray-100">AI Assistant</div>
+                                <div class="mt-1 text-gray-300">
+                                    Welcome! I'm your technical assistant. How can I help you today?
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+
+            <!-- Input area modifications: replaced input with a textarea -->
+            <div class="flex-shrink-0 bg-dark-secondary border-t border-gray-700">
+                <div class="max-w-3xl mx-auto px-4 py-3">
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <div class="relative rounded-lg shadow-sm">
+                                <!-- Changed from input to textarea for multiline messages -->
+                                <textarea id="userInput" rows="1"
+                                          class="block w-full rounded-lg bg-dark border-gray-600 text-gray-100 pl-4 pr-12 py-3 focus:border-primary focus:ring-primary sm:text-sm resize-none"
+                                          placeholder="Type your technical question..."></textarea>
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                    <button onclick="sendMessage()" class="text-gray-400 hover:text-gray-200">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-dark-secondary text-gray-100 px-4 py-2 rounded-full shadow-lg">
+        <div class="flex items-center space-x-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-100 border-t-transparent"></div>
+            <span class="text-sm">Processing...</span>
+        </div>
+    </div>
+
+    <script>
+        let conversations = [];
+
+        function addMessage(content, isUser) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'w-full';
+            
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = `w-full ${isUser ? 'bg-dark' : 'bg-dark-secondary'} rounded-lg px-4 py-3 shadow-lg`;
+            
+            const roleDiv = document.createElement('div');
+            roleDiv.className = 'font-medium text-gray-100';
+            roleDiv.textContent = isUser ? 'You' : 'AI Assistant';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'mt-1 text-gray-300';
+            
+            if (!isUser) {
+                messageContent.innerHTML = marked.parse(content);
+            } else {
+                messageContent.textContent = content;
+            }
+            
+            contentWrapper.appendChild(roleDiv);
+            contentWrapper.appendChild(messageContent);
+            messageDiv.appendChild(contentWrapper);
+            messagesDiv.appendChild(messageDiv);
+            
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Add to conversation history
+            if (isUser) {
+                addToHistory(content);
+            }
+        }
+
+        function addToHistory(question) {
+            const history = document.getElementById('conversationHistory');
+            const entry = document.createElement('a');
+            entry.href = '#';
+            entry.className = 'text-gray-300 hover:bg-gray-700 hover:text-white group flex items-center px-2 py-2 text-sm font-medium rounded-md';
+            entry.innerHTML = `
+                <i class="fas fa-comment mr-3 text-gray-400"></i>
+                <span class="flex-1 truncate">${question}</span>
+            `;
+            history.appendChild(entry);
+        }
+
+        // Global queue for words and flag for animation status.
+        let wordQueue = [];
+        let isAnimating = false;
+
+        // Function to process the word queue, appending one word at a time with delay.
+        function processQueue(target) {
+            if (wordQueue.length === 0) {
+                isAnimating = false;
+                return;
+            }
+            isAnimating = true;
+            // Append next word with a trailing space.
+            const nextWord = wordQueue.shift();
+            target.textContent += nextWord + " ";
+            // Scroll to bottom every update.
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            setTimeout(() => processQueue(target), 100); // adjust speed by changing delay (ms)
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const loading = document.getElementById('loading');
+            const question = input.value.trim();
+            
+            if (!question) return;
+            
+            // Show user's message
+            
+            input.value = '';
+            input.disabled = true;
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Check if response is a regular JSON (not a stream)
+                const contentType = response.headers.get('content-type');
+                console.log(contentType)
+                if (contentType && contentType.includes('charset=utf-8')) {
+                    
+                    const jsonResponse = await response.json();
+                    addMessage(jsonResponse.answer || jsonResponse.error || "An error occurred", false);
+                    return;
+                }
+
+                // Create container for the AI response
+                const messagesDiv = document.getElementById('messages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'w-full';
+                
+                const contentWrapper = document.createElement('div');
+                contentWrapper.className = 'w-full bg-dark-secondary rounded-lg px-4 py-3 shadow-lg';
+                
+                const roleDiv = document.createElement('div');
+                roleDiv.className = 'font-medium text-gray-100';
+                roleDiv.textContent = 'AI Assistant';
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'mt-1 text-gray-300';
+                
+                contentWrapper.appendChild(roleDiv);
+                contentWrapper.appendChild(messageContent);
+                messageDiv.appendChild(contentWrapper);
+                messagesDiv.appendChild(messageDiv);
+
+                // Handle streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = (buffer + chunk).split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '') continue;
+                            fullResponse += data;
+                            messageContent.innerHTML = marked.parse(fullResponse);
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage("Sorry, there was an error processing your request. Please try again.", false);
+            } finally {
+                input.disabled = false;
+                loading.classList.add('hidden');
+                input.focus();
+            }
+        }
+
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        document.getElementById('userInput').focus();
+    </script>
+</body>
+</html>
