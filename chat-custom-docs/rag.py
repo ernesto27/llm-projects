@@ -26,6 +26,10 @@ def query_vector_db(question):
 # API Route for Chatbot
 
 def ollama_api_request(model, prompt):
+    # # Save prompt to debug filele
+    with open('debug_prompts.txt', 'a') as f:
+        f.write(f"\n--- {model} ---\n{prompt}\n")
+    
     url = "http://localhost:11434/api/generate"
     payload = {"model": model, "prompt": prompt, "stream": True}
     headers = {"Content-Type": "application/json"}
@@ -46,10 +50,27 @@ def chat_handler():
     question = data.get("question", "")
     
     doc_content = query_vector_db(question)
-    model = "llama3.2:3b"
+    # model = "llama3.2:3b"
+    model = "mistral:latest"
     
+    prompt = """Eres un asistente muy estricto que ÚNICAMENTE puede responder usando la información que se encuentra en el siguiente texto delimitado por doble comillas. 
+
+REGLAS IMPORTANTES:
+1. Si la información NO está explícitamente en el texto, debes responder "No puedo responder esa pregunta porque la información no se encuentra en los documentos proporcionados."
+2. NO debes inferir, suponer, ni agregar información externa bajo ninguna circunstancia
+3. NO debes usar conocimiento general o previo
+4. Tu respuesta debe estar basada ÚNICAMENTE en el texto proporcionado
+5. Si la pregunta no está directamente relacionada con el texto, responde que no puedes ayudar
+
+Pregunta: {question}
+Texto de referencia:
+""
+{doc_content}
+"" 
+"""
+
     return Response(
-        ollama_api_request(model, f"Responde basandote en esta data: {doc_content} -  si la respuesta no se encuentra en la data , di que no sabes"),
+        ollama_api_request(model, prompt.format(doc_content=doc_content, question=question)),
         content_type='text/event-stream'
     )
 
@@ -63,13 +84,19 @@ def read_data_file(filepath):
 
 if __name__ == "__main__":
     # Read and insert document from data.txt
-    content = read_data_file("data.txt")
+    content = read_data_file("docs/casos-exito.txt")
     print(content)
     insert_document("1", content)
 
-    content2 = read_data_file("react.txt")
+    content2 = read_data_file("docs/cultura.txt")
     insert_document("2", content2)
 
 
+    content3 = read_data_file("docs/servicios.txt")
+    insert_document("3", content3)
+
+
+
+
     print("Server running on port 8081...")
-    app.run(host="0.0.0.0", port=8081, debug=True)
+    app.run(host="0.0.0.0", port=8081, debug=True, use_reloader=False)
