@@ -1,2 +1,5 @@
 debug_prompts
 docs
+tmp
+.env
+data.txt

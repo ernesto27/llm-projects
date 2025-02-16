@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full dark">
+<html lang="es" class="h-full dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise AI Assistant</title>
+    <title>Asistente AI Empresarial</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
@@ -30,11 +30,11 @@
         <div class="flex flex-col flex-1">
             <div class="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-dark-secondary border-b border-gray-700">
                 <button type="button" class="lg:hidden px-4 text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary">
-                    <span class="sr-only">Open sidebar</span>
+                    <span class="sr-only">Abrir barra lateral</span>
                     <i class="fas fa-bars"></i>
                 </button>
                 <div class="flex-1 px-4 flex justify-between items-center">
-                    <h1 class="text-2xl font-semibold text-gray-100">Pigmalion studios AI asistente</h1>
+                    <h1 class="text-2xl font-semibold text-gray-100">Asistente AI Empresarial</h1>
                 </div>
             </div>
 
@@ -44,11 +44,11 @@
                    <!-- Messages container with ChatGPT-style bubbles -->
                     <div class="max-w-3xl mx-auto space-y-6" id="messages">
                         <!-- Modified welcome message -->
-                        <div class="flex items-start">
+                        <div class="flex items-start space-y-4">
                             <div class="bg-dark-secondary rounded-lg px-4 py-3 shadow-lg w-full">
-                                <div class="font-medium text-gray-100">AI Assistant</div>
+                                <div class="font-medium text-gray-100">Asistente AI</div>
                                 <div class="mt-1 text-gray-300">
-                                    Welcome! I'm your technical assistant. How can I help you today?
+                                    ¡Bienvenido! Soy tu asistente técnico. ¿En qué puedo ayudarte hoy?
                                 </div>
                             </div>
                         </div>
@@ -65,7 +65,7 @@
                                 <!-- Changed from input to textarea for multiline messages -->
                                 <textarea id="userInput" rows="1"
                                           class="block w-full rounded-lg bg-dark border-gray-600 text-gray-100 pl-4 pr-12 py-3 focus:border-primary focus:ring-primary sm:text-sm resize-none"
-                                          placeholder="Type your technical question..."></textarea>
+                                          placeholder="Escribe tu pregunta técnica..."></textarea>
                                 <div class="absolute inset-y-0 right-0 flex items-center pr-3">
                                     <button onclick="sendMessage()" class="text-gray-400 hover:text-gray-200">
                                         <i class="fas fa-paper-plane"></i>
@@ -83,7 +83,7 @@
     <div id="loading" class="hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-dark-secondary text-gray-100 px-4 py-2 rounded-full shadow-lg">
         <div class="flex items-center space-x-2">
             <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-100 border-t-transparent"></div>
-            <span class="text-sm">Processing...</span>
+            <span class="text-sm">Procesando...</span>
         </div>
     </div>
 
@@ -93,14 +93,14 @@
         function addMessage(content, isUser) {
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'w-full';
+            messageDiv.className = 'flex items-start space-y-4 mb-4';
             
             const contentWrapper = document.createElement('div');
             contentWrapper.className = `w-full ${isUser ? 'bg-dark' : 'bg-dark-secondary'} rounded-lg px-4 py-3 shadow-lg`;
             
             const roleDiv = document.createElement('div');
             roleDiv.className = 'font-medium text-gray-100';
-            roleDiv.textContent = isUser ? 'You' : 'AI Assistant';
+            roleDiv.textContent = isUser ? 'Tú' : 'Asistente AI';
             
             const messageContent = document.createElement('div');
             messageContent.className = 'mt-1 text-gray-300';
@@ -162,7 +162,8 @@
             
             if (!question) return;
             
-            // Show user's message
+            // Add user message first
+            addMessage(question, false);
             
             input.value = '';
             input.disabled = true;
@@ -185,7 +186,7 @@
                 // Check if response is a regular JSON (not a stream)
                 const contentType = response.headers.get('content-type');
                 console.log(contentType)
-                if (contentType && contentType.includes('charset=utf-8')) {
+                if (contentType && contentType.includes('application/json')) {
                     
                     const jsonResponse = await response.json();
                     addMessage(jsonResponse.answer || jsonResponse.error || "An error occurred", false);
@@ -202,7 +203,7 @@
                 
                 const roleDiv = document.createElement('div');
                 roleDiv.className = 'font-medium text-gray-100';
-                roleDiv.textContent = 'AI Assistant';
+                roleDiv.textContent = 'Asistente AI';
                 
                 const messageContent = document.createElement('div');
                 messageContent.className = 'mt-1 text-gray-300';
@@ -230,7 +231,8 @@
                         if (line.startsWith('data: ')) {
                             const data = line.slice(6);
                             if (data === '') continue;
-                            fullResponse += data;
+                            // Add line break before "**"
+                            fullResponse += data.replace(/\*\*/g, '\n ## ');
                             messageContent.innerHTML = marked.parse(fullResponse);
                             messagesDiv.scrollTop = messagesDiv.scrollHeight;
                         }
@@ -239,7 +241,7 @@
 
             } catch (error) {
                 console.error('Error:', error);
-                addMessage("Sorry, there was an error processing your request. Please try again.", false);
+                addMessage("Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo.", false);
             } finally {
                 input.disabled = false;
                 loading.classList.add('hidden');

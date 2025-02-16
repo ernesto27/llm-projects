@@ -10,7 +10,15 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/joho/godotenv"
 )
+
+func init() {
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("Error loading .env file: %v\n", err)
+	}
+}
 
 type OllamaRequest struct {
 	Model  string `json:"model"`
@@ -32,16 +40,19 @@ func savePromptToFile(prompt string) error {
 	return os.WriteFile(filename, []byte(prompt), 0644)
 }
 
+func loadPromptTemplate() (string, error) {
+	content, err := os.ReadFile("prompt.txt")
+	if err != nil {
+		return "", fmt.Errorf("error reading prompt template: %v", err)
+	}
+	return string(content), nil
+}
+
 func queryOllama(docContent, question string) (string, error) {
-	promptTemplate := `Tu rol es ser un asistente tecnológico especializado de una empresa de desarrollo de software. Debes responder consultas de clientes potenciales utilizando exclusivamente la información proporcionada en el siguiente texto entre """. 
-
-Tu objetivo es ayudar a entender nuestros servicios y capacidades técnicas de manera profesional y precisa. Si la información solicitada no está presente en la documentación, responde: "Lo siento, no tengo esa información en este momento".
-
-"""
-%s
-"""
-
-Consulta del cliente: %s`
+	promptTemplate, err := loadPromptTemplate()
+	if err != nil {
+		return "", err
+	}
 	prompt := fmt.Sprintf(promptTemplate, docContent, question)
 
 	// Save the generated prompt to a file
@@ -54,7 +65,7 @@ Consulta del cliente: %s`
 		Prompt string `json:"prompt"`
 		Stream bool   `json:"stream"`
 	}{
-		Model:  "llama3.2:3b",
+		Model:  os.Getenv("OLLAMA_MODEL"),
 		Prompt: prompt,
 		Stream: true,
 	}
@@ -64,7 +75,8 @@ Consulta del cliente: %s`
 		return "", fmt.Errorf("error marshaling request: %v", err)
 	}
 
-	resp, err := http.Post("http://localhost:11434/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	apiURL := fmt.Sprintf("%s/api/generate", os.Getenv("OLLAMA_API_URL"))
+	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", fmt.Errorf("error making request: %v", err)
 	}
@@ -97,19 +109,19 @@ Consulta del cliente: %s`
 }
 
 func streamOllama(docContent, question string, stream chan<- string) error {
-	promptTemplate := `Tu rol es ser un asistente tecnológico especializado de una empresa de desarrollo de software. Debes responder consultas de clientes potenciales utilizando exclusivamente la información proporcionada en el siguiente texto entre """. 
-
-Tu objetivo es ayudar a entender nuestros servicios y capacidades técnicas de manera profesional y precisa. Si la información solicitada no está presente en la documentación, responde: "Lo siento, no tengo esa información en este momento".
-
-"""
-%s
-"""
-
-Consulta del cliente: %s`
+	promptTemplate, err := loadPromptTemplate()
+	if err != nil {
+		return err
+	}
 	prompt := fmt.Sprintf(promptTemplate, docContent, question)
 
+	// Save the complete prompt
+	if err := savePromptToFile(prompt); err != nil {
+		return fmt.Errorf("error saving prompt: %v", err)
+	}
+
 	reqBody := OllamaRequest{
-		Model:  "llama3.2:3b",
+		Model:  os.Getenv("OLLAMA_MODEL"),
 		Prompt: prompt,
 		Stream: true,
 	}
@@ -119,7 +131,8 @@ Consulta del cliente: %s`
 		return fmt.Errorf("error marshaling request: %v", err)
 	}
 
-	resp, err := http.Post("http://localhost:11434/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	apiURL := fmt.Sprintf("%s/api/generate", os.Getenv("OLLAMA_API_URL"))
+	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("error making request: %v", err)
 	}
